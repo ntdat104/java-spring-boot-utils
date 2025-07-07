@@ -3,7 +3,9 @@ package com.onemount.java_spring_boot_utils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import lombok.Data;
+import com.onemount.java_spring_boot_utils.dto.JsonBaseModel;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.CommandLineRunner;
@@ -35,23 +37,38 @@ public class JavaSpringBootUtilsApplication {
 	@Bean
 	public CommandLineRunner demo(ObjectMapper objectMapper) {
 		return args -> {
-			@Data
-			class User {
+			@Getter
+			@Setter
+			class User extends JsonBaseModel {
 				private String name;
 				private Integer age;
 				private Boolean isActive;
+				private Address address;
+
+				@Getter
+				@Setter
+				public static class Address extends JsonBaseModel {
+					private String street;
+					private String city;
+					private String stateName;
+				}
 			}
 			User user1 = new User();
 			user1.setName("John");
 			user1.setAge(23);
 			user1.setIsActive(true);
+			User.Address address = new User.Address();
+			address.setStreet("street 1");
+			address.setCity("city 1");
+			address.setStateName("state 1");
+			user1.setAddress(address);
 
 			String dataStr  = objectMapper.writeValueAsString(user1);
 			byte[] dataByte = objectMapper.writeValueAsBytes(user1);
 
 			log.info("Application started {}", dataStr);
 			log.info("Application started 2 {}", user1);
-			log.info(Base64.getEncoder().encodeToString(dataByte));
+			log.info(Base64.getEncoder().withoutPadding().encodeToString(dataByte));
 			log.info(Base64.getUrlEncoder().encodeToString(dataByte));
 		};
 	}
@@ -64,11 +81,11 @@ public class JavaSpringBootUtilsApplication {
 
 			log.info("➤ Retrieve immediately: {}", cache.getIfPresent("foo")); // bar
 
-			Thread.sleep(1_500);
-			log.info("➤ After 1.5s (still within TTL): {}", cache.getIfPresent("foo")); // bar
+			Thread.sleep(500);
+			log.info("➤ After 0.5s (still within TTL): {}", cache.getIfPresent("foo")); // bar
 
-			Thread.sleep(2_500); // total 2.5s since the initial put
-			log.info("➤ After a total of 2.5s (expired after 2s): {}", cache.getIfPresent("foo")); // null
+			Thread.sleep(1_500); // total 1.5s since the initial put
+			log.info("➤ After a total of 1.5s (expired after 1s): {}", cache.getIfPresent("foo")); // null
 
 			log.info("➤ Cache stats: {}", cache.stats());
 		};
@@ -110,7 +127,7 @@ public class JavaSpringBootUtilsApplication {
 		// 1. Tùy biến builder của Caffeine
 		Caffeine<Object, Object> caffeine = Caffeine.newBuilder()
 				.maximumSize(10_000)                     // giới hạn số entry
-				.expireAfterWrite(Duration.ofMinutes(2))// TTL 2 phút
+				.expireAfterWrite(Duration.ofMinutes(1))// TTL 2 phút
 				.recordStats();                          // thống kê hit/miss
 
 		// 2. Tạo CaffeineCacheManager
