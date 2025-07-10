@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.onemount.java_spring_boot_utils.dto.JsonBaseModel;
+import com.onemount.java_spring_boot_utils.utils.RsaUtil;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,9 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.http.HttpClient;
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
@@ -32,6 +36,68 @@ public class JavaSpringBootUtilsApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(JavaSpringBootUtilsApplication.class, args);
+	}
+
+	@Bean
+	public CommandLineRunner testRsa(ObjectMapper objectMapper) {
+		return args -> {
+			@Getter
+			@Setter
+			class User extends JsonBaseModel {
+				private String name;
+				private Integer age;
+				private Boolean isActive;
+				private Address address;
+
+				@Getter
+				@Setter
+				public static class Address extends JsonBaseModel {
+					private String street;
+					private String city;
+					private String stateName;
+				}
+			}
+			User user1 = new User();
+			user1.setName("John");
+			user1.setAge(23);
+			user1.setIsActive(true);
+			User.Address address = new User.Address();
+			address.setStreet("street 1");
+			address.setCity("city 1");
+			address.setStateName("state 1");
+			user1.setAddress(address);
+
+			log.info("======================== Start Rsa ========================");
+
+			// 1. Generate RSA key pair
+			KeyPair keyPair = RsaUtil.generateKeyPair(2048);
+			PublicKey publicKey = keyPair.getPublic();
+			PrivateKey privateKey = keyPair.getPrivate();
+
+			String message = objectMapper.writeValueAsString(user1);
+
+			String messageEncode = Base64.getEncoder().encodeToString(message.getBytes());
+
+			System.out.println("message encoded: " + messageEncode);
+
+			String messageDecode = new String(Base64.getDecoder().decode(messageEncode));
+
+			System.out.println("message decoded: " + messageDecode);
+
+			// 2. Encrypt/Decrypt
+			String encrypted = RsaUtil.encrypt(message, publicKey);
+			String decrypted = RsaUtil.decrypt(encrypted, privateKey);
+			System.out.println("Encrypted: " + encrypted);
+			System.out.println("Decrypted: " + decrypted);
+
+			// 3. Sign/Verify
+			String signature = RsaUtil.sign(message, privateKey);
+			boolean isValid = RsaUtil.verify(message, signature, publicKey);
+			System.out.println("Signature: " + signature);
+			System.out.println("Signature Valid: " + isValid);
+
+			log.info("======================== End Rsa ========================");
+		};
 	}
 
 	@Bean
