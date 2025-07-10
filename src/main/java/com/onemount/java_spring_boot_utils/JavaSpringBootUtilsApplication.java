@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.onemount.java_spring_boot_utils.dto.JsonBaseModel;
+import com.onemount.java_spring_boot_utils.utils.AesUtil;
 import com.onemount.java_spring_boot_utils.utils.RsaUtil;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,10 +20,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.net.http.HttpClient;
-import java.security.KeyPair;
-import java.security.PrivateKey;
-import java.security.PublicKey;
+import java.nio.charset.StandardCharsets;
+import java.security.*;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
@@ -68,33 +70,85 @@ public class JavaSpringBootUtilsApplication {
 			user1.setAddress(address);
 
 			log.info("======================== Start Rsa ========================");
-
 			// 1. Generate RSA key pair
-			KeyPair keyPair = RsaUtil.generateKeyPair(2048);
-			PublicKey publicKey = keyPair.getPublic();
-			PrivateKey privateKey = keyPair.getPrivate();
+			KeyPair keyPairAlice = RsaUtil.generateKeyPair(2048);
+			PublicKey publicKeyAlice = keyPairAlice.getPublic();
+			PrivateKey privateKeyAlice = keyPairAlice.getPrivate();
 
-			String message = objectMapper.writeValueAsString(user1);
+			KeyPair keyPairBob = RsaUtil.generateKeyPair(2048);
+			PublicKey publicKeyBob = keyPairBob.getPublic();
+			PrivateKey privateKeyBob = keyPairBob.getPrivate();
 
-			String messageEncode = Base64.getEncoder().encodeToString(message.getBytes());
+			/*
+			* Tao chu ky so va verify
+			* Bước 1 message -> sha256(meesage) = hash
+			* Bước 2 hash -> base64Encode(hash) = hashEncoded
+			* Bước 3 hashEncoded -> sign(hashEncoded, privateKey) = signature
+			* Bước 4 verify(hashEncoded, signature, publicKey)
+			*/
 
-			System.out.println("message encoded: " + messageEncode);
+			/*
+			* Ma hoa va giai ma
+			* Bước 1 message -> base64Encode(message) = encodedMessage
+			* Bước 2 encodeMessage -> rsaEncrypt(encodeMeesage, publicKey) = cipherText
+			* Bước 3 cipherText -> rsaDecrypt(cipherText, privateKey) = encodeMessage
+			* Bước 4 encodeMessage -> base64Decode(encodeMessage) = message
+			* */
 
-			String messageDecode = new String(Base64.getDecoder().decode(messageEncode));
+			// Alice chuẩn bị message
+			User message = user1;
+			byte[] messageBytes = objectMapper.writeValueAsBytes(message);
 
-			System.out.println("message decoded: " + messageDecode);
+			// Tạo AES key
+			SecretKey aesKey = AesUtil.generateAESKey(256);
+			byte[] iv = new byte[16];
+			new SecureRandom().nextBytes(iv);
 
-			// 2. Encrypt/Decrypt
-			String encrypted = RsaUtil.encrypt(message, publicKey);
-			String decrypted = RsaUtil.decrypt(encrypted, privateKey);
-			System.out.println("Encrypted: " + encrypted);
-			System.out.println("Decrypted: " + decrypted);
+			// AES encrypt message
+			byte[] cipherTextAES = AesUtil.encrypt(messageBytes, aesKey, iv);
 
-			// 3. Sign/Verify
-			String signature = RsaUtil.sign(message, privateKey);
-			boolean isValid = RsaUtil.verify(message, signature, publicKey);
-			System.out.println("Signature: " + signature);
-			System.out.println("Signature Valid: " + isValid);
+			// Alice hash ciphertext
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] hashCiphertext = digest.digest(cipherTextAES);
+
+			// Alice sign hash
+			byte[] signatureBytes = RsaUtil.sign(hashCiphertext, privateKeyAlice);
+			String signatureBase64 = Base64.getEncoder().encodeToString(signatureBytes);
+
+			// Alice encrypt AES key bằng RSA publicKeyBob
+			byte[] encryptedAESKeyBytes = RsaUtil.encrypt(aesKey.getEncoded(), publicKeyBob);
+			String encryptedAESKeyBase64 = Base64.getEncoder().encodeToString(encryptedAESKeyBytes);
+			String ivBase64 = Base64.getEncoder().encodeToString(iv);
+			String cipherTextBase64 = Base64.getEncoder().encodeToString(cipherTextAES);
+
+			System.out.println("Alice encrypted AES key: " + encryptedAESKeyBase64);
+			System.out.println("Alice IV: " + ivBase64);
+			System.out.println("Alice cipherText: " + cipherTextBase64);
+			System.out.println("Alice signature: " + signatureBase64);
+
+			// Bob nhận encryptedAESKeyBase64, ivBase64, cipherTextBase64, signatureBase64
+
+			// Bob decrypt AES key
+			byte[] encryptedAESKeyBytesBob = Base64.getDecoder().decode(encryptedAESKeyBase64);
+			byte[] aesKeyBytes = RsaUtil.decrypt(encryptedAESKeyBytesBob, privateKeyBob);
+			SecretKey aesKeyBob = new SecretKeySpec(aesKeyBytes, "AES");
+
+			// Bob decrypt ciphertext
+			byte[] ivBob = Base64.getDecoder().decode(ivBase64);
+			byte[] cipherTextAESBob = Base64.getDecoder().decode(cipherTextBase64);
+			byte[] plainBytes = AesUtil.decrypt(cipherTextAESBob, aesKeyBob, ivBob);
+
+			// Bob hash ciphertext
+			MessageDigest digestBob = MessageDigest.getInstance("SHA-256");
+			byte[] hashCiphertextBob = digestBob.digest(cipherTextAESBob);
+
+			// Bob verify signature
+			byte[] signatureBytesBob = Base64.getDecoder().decode(signatureBase64);
+			boolean valid = RsaUtil.verify(hashCiphertextBob, signatureBytesBob, publicKeyAlice);
+
+			System.out.println("Bob verify Alice signature valid: " + valid);
+			System.out.println("Bob plaintext JSON: " + new String(plainBytes, StandardCharsets.UTF_8));
+
 
 			log.info("======================== End Rsa ========================");
 		};

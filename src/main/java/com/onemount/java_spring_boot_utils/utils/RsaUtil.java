@@ -51,20 +51,33 @@ public class RsaUtil {
         return signature.verify(signatureBytes);
     }
 
-    // Utilities
-    public static String keyToBase64(Key key) {
-        return Base64.getEncoder().encodeToString(key.getEncoded());
+    // Encrypt with Public Key
+    public static byte[] encrypt(byte[] plainText, PublicKey publicKey) throws Exception {
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        return cipher.doFinal(plainText);
     }
 
-    public static PublicKey base64ToPublicKey(String base64Key) throws Exception {
-        byte[] bytes = Base64.getDecoder().decode(base64Key);
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(bytes);
-        return KeyFactory.getInstance(ALGORITHM).generatePublic(spec);
+    // Decrypt with Private Key
+    public static byte[] decrypt(byte[] cipherText, PrivateKey privateKey) throws Exception {
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.DECRYPT_MODE, privateKey);
+        return cipher.doFinal(cipherText);
     }
 
-    public static PrivateKey base64ToPrivateKey(String base64Key) throws Exception {
-        byte[] bytes = Base64.getDecoder().decode(base64Key);
-        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(bytes);
-        return KeyFactory.getInstance(ALGORITHM).generatePrivate(spec);
+    // Sign data using private key
+    public static byte[] sign(byte[] message, PrivateKey privateKey) throws Exception {
+        Signature signature = Signature.getInstance(SIGNATURE_ALGORITHM);
+        signature.initSign(privateKey);
+        signature.update(message);
+        return signature.sign();
+    }
+
+    // Verify signature using public key
+    public static boolean verify(byte[] message, byte[] sign, PublicKey publicKey) throws Exception {
+        Signature signature = Signature.getInstance(SIGNATURE_ALGORITHM);
+        signature.initVerify(publicKey);
+        signature.update(message);
+        return signature.verify(sign);
     }
 }
