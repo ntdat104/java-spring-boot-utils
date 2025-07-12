@@ -20,6 +20,13 @@
 	</properties>
 
 	<dependencies>
+		<!-- jose4j -->
+		<dependency>
+			<groupId>org.bitbucket.b_c</groupId>
+			<artifactId>jose4j</artifactId>
+			<version>0.9.4</version> <!-- or the latest stable version -->
+		</dependency>
+
 		<!-- spring-boot-starter-web -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

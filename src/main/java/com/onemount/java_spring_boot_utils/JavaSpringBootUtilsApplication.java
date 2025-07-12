@@ -6,6 +6,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.onemount.java_spring_boot_utils.dto.JsonBaseModel;
 import com.onemount.java_spring_boot_utils.utils.AesUtil;
 import com.onemount.java_spring_boot_utils.utils.RsaUtil;
+import com.onemount.java_spring_boot_utils.utils.SignatureUtils;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,29 @@ import java.util.concurrent.Executors;
 @EnableCaching   // bật Spring Cache
 @SpringBootApplication
 public class JavaSpringBootUtilsApplication {
+
+	private static final String RSA_PRIVATE_KEY = "-----BEGIN RSA PRIVATE KEY-----\n" +
+			"MIICWgIBAAKBgE+xVHAkBZpDmxLa22O9hzh+oAt8uigTyB936Tx6/wSssylOt/7I\n" +
+			"qrMPVsCLYnhnUN+1nztBhBlnJ4Qc8HJgq6diuDlt3H6sCoTh1IVNo5rv7pEmGwbE\n" +
+			"9gWH4h577XhNHrp+s9O9UTiby1EGBSsB2DHRKqkC9XovBXSbdTjLVJDtAgMBAAEC\n" +
+			"gYBKhCXQNd6HQG/gUYSS3sVxrfU4yIfIsbaOtjEAvIF4fYOJPHIPatMyW0VjBPIu\n" +
+			"Y2zbwZgCcGB04F+yyNyMFphqAGeEb7H6FoM9zplMW9wqEe36KdMjeRjDfCK4qVkd\n" +
+			"RZbpIn18/PI+6EKdlzNPaSgbNWk/btvAPiv1rFrqUV7WgQJBAI8PP0f+Yyn0v9Tr\n" +
+			"mTI3DXyAFVn0PKz0I5XcLgyvSh1yH4UZnZoq3OsxvMMYVijeaJRQnz+ehAGmfmAJ\n" +
+			"lNJC+X8CQQCOm3SAz6EFPNp/pUzwE1y7YqtJ4+SlMNGuwWhL4HEqgpFgpKQL9ZTt\n" +
+			"r5y1jZ9jxcQI1LzLped/Zn+wUowgVTOTAkAgkq4r7EYT5YBQMJyfDF3rvRYfdzbh\n" +
+			"gm0f0BREGx1a+wMmQSDbW2sVuitqmH31rD5PltPLnoIcBha8MzJJdaptAkBakiLZ\n" +
+			"GIVExVRkU4DczP9NR6pQIHv76liR6+YooqBdBlX8kjRaIBv5JVqa+BpuDJGnpi1O\n" +
+			"Dc1MXbXlL1gtxM8fAkBefKL6ox3Jz6trzdMXifEWEkiI6ePMa3bJJEjS5Lp/rP0u\n" +
+			"YUuHB3KSEhtRATDidZccoem2Mp9rnzk9gItNQ6Uk\n" +
+			"-----END RSA PRIVATE KEY-----";
+
+	private static final String RSA_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\n" +
+			"MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgE+xVHAkBZpDmxLa22O9hzh+oAt8\n" +
+			"uigTyB936Tx6/wSssylOt/7IqrMPVsCLYnhnUN+1nztBhBlnJ4Qc8HJgq6diuDlt\n" +
+			"3H6sCoTh1IVNo5rv7pEmGwbE9gWH4h577XhNHrp+s9O9UTiby1EGBSsB2DHRKqkC\n" +
+			"9XovBXSbdTjLVJDtAgMBAAE=\n" +
+			"-----END PUBLIC KEY-----";
 
 	public static void main(String[] args) {
 		SpringApplication.run(JavaSpringBootUtilsApplication.class, args);
@@ -70,10 +94,21 @@ public class JavaSpringBootUtilsApplication {
 			user1.setAddress(address);
 
 			log.info("======================== Start Rsa ========================");
+			PublicKey pub = RsaUtil.loadPublicKey(RSA_PUBLIC_KEY);
+			PrivateKey pri = RsaUtil.loadPrivateKey(RSA_PRIVATE_KEY);
+
+			String sign = RsaUtil.sign("123", pri);
+			Boolean verify = RsaUtil.verify("123", sign, pub);
+
+			String signature = SignatureUtils.signSHA256WithRSA(RSA_PRIVATE_KEY, "123");
+			Boolean isValid = SignatureUtils.verifySHA256WithRSA(RSA_PUBLIC_KEY, signature, "123");
+
+			log.info("sign = signature: {}", signature.equals(sign));
+			log.info("verify = verify: {}", verify.equals(isValid));
+
 			// 1. Generate RSA key pair
-			KeyPair keyPairAlice = RsaUtil.generateKeyPair(2048);
-			PublicKey publicKeyAlice = keyPairAlice.getPublic();
-			PrivateKey privateKeyAlice = keyPairAlice.getPrivate();
+			PublicKey publicKeyAlice = RsaUtil.loadPublicKey(RSA_PUBLIC_KEY);
+			PrivateKey privateKeyAlice = RsaUtil.loadPrivateKey(RSA_PRIVATE_KEY);
 
 			KeyPair keyPairBob = RsaUtil.generateKeyPair(2048);
 			PublicKey publicKeyBob = keyPairBob.getPublic();
