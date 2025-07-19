@@ -19,6 +19,7 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.SecretKey;
@@ -37,28 +38,8 @@ import java.util.concurrent.Executors;
 @SpringBootApplication
 public class JavaSpringBootUtilsApplication {
 
-	private static final String RSA_PRIVATE_KEY = "-----BEGIN RSA PRIVATE KEY-----\n" +
-			"MIICWgIBAAKBgE+xVHAkBZpDmxLa22O9hzh+oAt8uigTyB936Tx6/wSssylOt/7I\n" +
-			"qrMPVsCLYnhnUN+1nztBhBlnJ4Qc8HJgq6diuDlt3H6sCoTh1IVNo5rv7pEmGwbE\n" +
-			"9gWH4h577XhNHrp+s9O9UTiby1EGBSsB2DHRKqkC9XovBXSbdTjLVJDtAgMBAAEC\n" +
-			"gYBKhCXQNd6HQG/gUYSS3sVxrfU4yIfIsbaOtjEAvIF4fYOJPHIPatMyW0VjBPIu\n" +
-			"Y2zbwZgCcGB04F+yyNyMFphqAGeEb7H6FoM9zplMW9wqEe36KdMjeRjDfCK4qVkd\n" +
-			"RZbpIn18/PI+6EKdlzNPaSgbNWk/btvAPiv1rFrqUV7WgQJBAI8PP0f+Yyn0v9Tr\n" +
-			"mTI3DXyAFVn0PKz0I5XcLgyvSh1yH4UZnZoq3OsxvMMYVijeaJRQnz+ehAGmfmAJ\n" +
-			"lNJC+X8CQQCOm3SAz6EFPNp/pUzwE1y7YqtJ4+SlMNGuwWhL4HEqgpFgpKQL9ZTt\n" +
-			"r5y1jZ9jxcQI1LzLped/Zn+wUowgVTOTAkAgkq4r7EYT5YBQMJyfDF3rvRYfdzbh\n" +
-			"gm0f0BREGx1a+wMmQSDbW2sVuitqmH31rD5PltPLnoIcBha8MzJJdaptAkBakiLZ\n" +
-			"GIVExVRkU4DczP9NR6pQIHv76liR6+YooqBdBlX8kjRaIBv5JVqa+BpuDJGnpi1O\n" +
-			"Dc1MXbXlL1gtxM8fAkBefKL6ox3Jz6trzdMXifEWEkiI6ePMa3bJJEjS5Lp/rP0u\n" +
-			"YUuHB3KSEhtRATDidZccoem2Mp9rnzk9gItNQ6Uk\n" +
-			"-----END RSA PRIVATE KEY-----";
-
-	private static final String RSA_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\n" +
-			"MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgE+xVHAkBZpDmxLa22O9hzh+oAt8\n" +
-			"uigTyB936Tx6/wSssylOt/7IqrMPVsCLYnhnUN+1nztBhBlnJ4Qc8HJgq6diuDlt\n" +
-			"3H6sCoTh1IVNo5rv7pEmGwbE9gWH4h577XhNHrp+s9O9UTiby1EGBSsB2DHRKqkC\n" +
-			"9XovBXSbdTjLVJDtAgMBAAE=\n" +
-			"-----END PUBLIC KEY-----";
+	private static final String BASE64_RSA_PRIVATE_KEY = "LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlDV2dJQkFBS0JnRSt4VkhBa0JacERteExhMjJPOWh6aCtvQXQ4dWlnVHlCOTM2VHg2L3dTc3N5bE90LzdJCnFyTVBWc0NMWW5oblVOKzFuenRCaEJsbko0UWM4SEpncTZkaXVEbHQzSDZzQ29UaDFJVk5vNXJ2N3BFbUd3YkUKOWdXSDRoNTc3WGhOSHJwK3M5TzlVVGlieTFFR0JTc0IyREhSS3FrQzlYb3ZCWFNiZFRqTFZKRHRBZ01CQUFFQwpnWUJLaENYUU5kNkhRRy9nVVlTUzNzVnhyZlU0eUlmSXNiYU90akVBdklGNGZZT0pQSElQYXRNeVcwVmpCUEl1ClkyemJ3WmdDY0dCMDRGK3l5TnlNRnBocUFHZUViN0g2Rm9NOXpwbE1XOXdxRWUzNktkTWplUmpEZkNLNHFWa2QKUlpicEluMTgvUEkrNkVLZGx6TlBhU2diTldrL2J0dkFQaXYxckZycVVWN1dnUUpCQUk4UFAwZitZeW4wdjlUcgptVEkzRFh5QUZWbjBQS3owSTVYY0xneXZTaDF5SDRVWm5ab3EzT3N4dk1NWVZpamVhSlJRbnorZWhBR21mbUFKCmxOSkMrWDhDUVFDT20zU0F6NkVGUE5wL3BVendFMXk3WXF0SjQrU2xNTkd1d1doTDRIRXFncEZncEtRTDlaVHQKcjV5MWpaOWp4Y1FJMUx6THBlZC9abit3VW93Z1ZUT1RBa0Fna3E0cjdFWVQ1WUJRTUp5ZkRGM3J2UllmZHpiaApnbTBmMEJSRUd4MWErd01tUVNEYlcyc1Z1aXRxbUgzMXJENVBsdFBMbm9JY0JoYThNekpKZGFwdEFrQmFraUxaCkdJVkV4VlJrVTREY3pQOU5SNnBRSUh2NzZsaVI2K1lvb3FCZEJsWDhralJhSUJ2NUpWcWErQnB1REpHbnBpMU8KRGMxTVhiWGxMMWd0eE04ZkFrQmVmS0w2b3gzSno2dHJ6ZE1YaWZFV0VraUk2ZVBNYTNiSkpFalM1THAvclAwdQpZVXVIQjNLU0VodFJBVERpZFpjY29lbTJNcDlybnprOWdJdE5RNlVrCi0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0t";
+	private static final String BASE64_RSA_PUBLIC_KEY = "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlHZU1BMEdDU3FHU0liM0RRRUJBUVVBQTRHTUFEQ0JpQUtCZ0UreFZIQWtCWnBEbXhMYTIyTzloemgrb0F0OAp1aWdUeUI5MzZUeDYvd1Nzc3lsT3QvN0lxck1QVnNDTFluaG5VTisxbnp0QmhCbG5KNFFjOEhKZ3E2ZGl1RGx0CjNINnNDb1RoMUlWTm81cnY3cEVtR3diRTlnV0g0aDU3N1hoTkhycCtzOU85VVRpYnkxRUdCU3NCMkRIUktxa0MKOVhvdkJYU2JkVGpMVkpEdEFnTUJBQUU9Ci0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQ==";
 
 	public static void main(String[] args) {
 		SpringApplication.run(JavaSpringBootUtilsApplication.class, args);
@@ -94,6 +75,11 @@ public class JavaSpringBootUtilsApplication {
 			user1.setAddress(address);
 
 			log.info("======================== Start Rsa ========================");
+//			String rsaPrivateKey = RSA_PRIVATE_KEY.replace("\n", "");
+
+			String RSA_PRIVATE_KEY = new String(Base64.getDecoder().decode(BASE64_RSA_PRIVATE_KEY));
+			String RSA_PUBLIC_KEY = new String(Base64.getDecoder().decode(BASE64_RSA_PUBLIC_KEY));
+
 			PublicKey pub = RsaUtil.loadPublicKey(RSA_PUBLIC_KEY);
 			PrivateKey pri = RsaUtil.loadPrivateKey(RSA_PRIVATE_KEY);
 
@@ -271,7 +257,7 @@ public class JavaSpringBootUtilsApplication {
 	@Bean(name = "caffeineCache")
 	public Cache<String, Object> caffeineCache() {
 		return Caffeine.newBuilder()
-				.expireAfterAccess(Duration.ofSeconds(2))
+				.expireAfterAccess(Duration.ofMinutes(1))
 				.recordStats()
 				.maximumSize(5_000)
 				.build();
@@ -286,7 +272,7 @@ public class JavaSpringBootUtilsApplication {
 				.recordStats();                          // thống kê hit/miss
 
 		// 2. Tạo CaffeineCacheManager
-		CaffeineCacheManager manager = new CaffeineCacheManager();
+		CaffeineCacheManager manager = new CaffeineCacheManager("tickerPrice", "exchangeInfo", "bookTicker", "depth", "recentTrades", "klines");
 		manager.setCaffeine(caffeine);
 
 		// 3. Khai báo sẵn tên cache (không bắt buộc)
